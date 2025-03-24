@@ -12,18 +12,30 @@ type Step = "configuring" | "painting";
 // Default values
 const defaultSelectedColorID = () => 0;
 const defaultColorPalette = () => ([
-  {h: 175, s:65, l:35, id: 0},
-  {h: 150, s:74, l:72, id: 1},
-  {h: 50, s:91, l:70, id: 2},
-  {h: 11, s:100, l:85, id: 3},
-  {h: 16, s:95, l:65, id: 4},
-  {h: 0, s:100, l:100, id: 5},
-  {h: 0, s:100, l:100, id: 6},
-  {h: 0, s:100, l:100, id: 7},
-  {h: 0, s:100, l:100, id: 8},
-  {h: 0, s:100, l:100, id: 9},
-  {h: 0, s:100, l:100, id: 10},
-  {h: 0, s:100, l:100, id: 11},
+  // Red
+  {h: 0, s:100, l:50, id: 0},
+  // Orange
+  {h: 30, s:100, l:50, id: 1},
+  // Yellow
+  {h: 60, s:100, l:50, id: 2},
+  // Green
+  {h: 120, s:100, l:40, id: 3},
+  // Cyan
+  {h: 180, s:100, l:45, id: 4},
+  // Blue
+  {h: 240, s:100, l:50, id: 5},
+  // Indigo
+  {h: 275, s:100, l:35, id: 6},
+  // Violet/Purple
+  {h: 300, s:100, l:40, id: 7},
+  // Pink
+  {h: 330, s:100, l:60, id: 8},
+  // Brown
+  {h: 25, s:70, l:35, id: 9},
+  // Black
+  {h: 0, s:0, l:10, id: 10},
+  // White
+  {h: 0, s:0, l:100, id: 11},
 ]);
 const defaultCanvas = () => ({});
 const defaultHistory = () => ({cursor: 0, versions:[defaultCanvas()]});
@@ -37,6 +49,7 @@ export class BeadsStore {
   #_canvasColors = $state(defaultCanvas());
   #_history = $state<History>(defaultHistory());
   #_isStaggered = $state(true); // Default to staggered layout
+  #_handMode = $state(false); // Default to painting mode (not hand mode)
 
   // Getters
   get step(): Step { return this.#_step; }
@@ -45,6 +58,7 @@ export class BeadsStore {
   get canvasColors() { return this.#_canvasColors; }
   get history() { return this.#_history; }
   get isStaggered() { return this.#_isStaggered; }
+  get handMode() { return this.#_handMode; }
 
   // Setters
   set step(value: Step) {
@@ -68,6 +82,8 @@ export class BeadsStore {
   }
 
   set isStaggered(value: boolean) { this.#_isStaggered = value; }
+  
+  set handMode(value: boolean) { this.#_handMode = value; }
 
   // Step actions
   setStepPainting() {
@@ -126,9 +142,13 @@ export class BeadsStore {
     this.resetHistory();
   }
 
-  // Add toggle method
+  // Toggle methods
   toggleStaggered() {
     this.isStaggered = !this.isStaggered;
+  }
+  
+  toggleHandMode() {
+    this.handMode = !this.handMode;
   }
 }
 

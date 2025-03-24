@@ -3,7 +3,7 @@
   import { beadsStore } from './stores.svelte';
   import { onMount } from 'svelte';
   import { Button } from "$lib/components/ui/button/index.js";
-  import { Undo, Redo, RotateCcwSquare, RotateCwSquare, TableCellsSplit, Trash2, Grid2x2 } from '@lucide/svelte';
+  import { Undo, Redo, RotateCcwSquare, RotateCwSquare, TableCellsSplit, Trash2, Grid2x2, Hand, Grab, Camera } from '@lucide/svelte';
 
   // State for the app
   let gridSize = $state(20);
@@ -53,9 +53,18 @@
     gridSize = 20;
     layoutRotation = 90;
   }
+
+  function handleSnapAndDownload() {
+    console.log("handleSnapAndDownload");
+  }
+  
+  // Toggle hand mode for panning
+  function toggleHandMode() {
+    beadsStore.toggleHandMode();
+  }
 </script>
 
-<main class:painting>
+<main class="min-h-screen grid grid-cols-[fit-content(4em)_1fr_1fr] grid-areas-painting">
   <!-- Logo Section -->
   <div class="logo text-xl">
       <span class="hidden lg:block">Beadbead</span>
@@ -64,7 +73,7 @@
   
   <!-- Config Panel -->
   <div class= "config-panel">
-     <div class="flex items-center gap-2">
+     <div class="flex flex-wrap items-center gap-2">
       <Button variant="outline" size="icon" onclick={rotateLeft}>
         <RotateCcwSquare />
       </Button>
@@ -76,6 +85,21 @@
           <TableCellsSplit />
         {:else}
           <Grid2x2 />
+        {/if}
+      </Button>
+      
+      <!-- Hand Mode Toggle Button -->
+      <Button 
+        variant={beadsStore.handMode ? "default" : "outline"} 
+        size="icon" 
+        onclick={toggleHandMode}
+        aria-label={beadsStore.handMode ? "Leave hand mode" : "Switch to hand mode"}
+        title={beadsStore.handMode ? "Leave hand mode" : "Switch to hand mode"}
+      >
+        {#if beadsStore.handMode}
+          <Grab />
+        {:else}
+          <Hand />
         {/if}
       </Button>
       
@@ -111,7 +135,7 @@
   </div>
   
   <!-- Painting Toolbox -->
-  <div class="painting-toolbox mt-4">
+  <div class="painting-toolbox h-screen p-1 shadow-md rounded-md w-[2em] sm:w-[4em] mt-4">
       <div class="cell-hue-slider">
         <input 
           type="range" class="hue-gradient"
@@ -149,13 +173,10 @@
             ></button>
           {/each}
         </div>
-      
-     
-      
   </div>
   
   <!-- Workspace -->
-  <div class="workspace">
+  <div class="workspace h-[calc(100vh-7rem)]">
     <Canvas gridSize={gridSize} layoutRotation={layoutRotation} />
   </div>
 </main>
@@ -163,8 +184,9 @@
 <style>
   main {
     padding: 1em;
-    display: grid;
-    grid-template-columns: clamp(80px, 10%, 100px) 1fr 1fr;
+  }
+
+  .grid-areas-painting {
     grid-template-areas: 
       "logo config-panel config-panel"
       "painting-toolbox workspace workspace";
@@ -179,14 +201,12 @@
 
   .painting-toolbox {
     grid-area: painting-toolbox;
-    
   }
   .workspace {
     grid-area: workspace;
   }
 
-
- .painting-toolbox input[type="range"] {
+  .painting-toolbox input[type="range"] {
     -webkit-appearance: none;
     width: 90%;
     height: 0.8em;
@@ -226,8 +246,11 @@
   
   .color.selected {
     filter: drop-shadow(0 0 0.2em rgba(0,0,0,0.2));
-    border-radius: 0.4em;
+    border-radius: 0.2em;
     border: 0.1em solid black;
+    transform: scale(1.2) translateX(0.2em);
+    transform-origin: center center;
+    
   }
   
   .color:not(.selected) {
@@ -242,6 +265,4 @@
   .blank:not(.selected) {
     filter: drop-shadow(0 0 0.1em rgba(0,0,0,0.2));
   }
- 
-
 </style> 

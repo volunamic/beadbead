@@ -18,9 +18,14 @@
   );
   const fill = $derived(`hsl(${color.h}, ${color.s}%, ${color.l}%)`);
 
+  // Helper function to check if painting is allowed
+  function canPaint() {
+    return beadsStore.step === "painting" && !beadsStore.handMode;
+  }
+
   // Paint function
   function paint() {
-    if (beadsStore.step !== "painting") return;
+    if (!canPaint()) return;
     beadsStore.canvasColors = {
       ...beadsStore.canvasColors, 
       [id]: beadsStore.selectedColorId
@@ -28,13 +33,13 @@
   }
 
   function handleClick() {
-    if (beadsStore.step !== "painting") return;
+    if (!canPaint()) return;
     paint();
     beadsStore.commitToHistory(beadsStore.canvasColors);
   }
 
   function handleMouseEnter(e: MouseEvent) {
-    if (beadsStore.step !== "painting") return;
+    if (!canPaint()) return;
     if (e.buttons === 1) paint();
   }
 </script>
@@ -48,6 +53,7 @@
   {fill}
   stroke="darkgray" 
   stroke-width="0.1"
+  class:paintable={canPaint()}
   onclick={handleClick}
   onmousedown={paint}
   onmouseenter={handleMouseEnter}
@@ -64,5 +70,9 @@
   }
   rect:focus {
     stroke-width: 0.2;
+  }
+  .paintable:hover {
+    stroke-width: 0.2;
+    cursor: crosshair;
   }
 </style> 

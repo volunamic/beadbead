@@ -1,7 +1,8 @@
 <script lang="ts">
   import Bead from './Bead.svelte';
   import { beadsStore } from './stores.svelte';
-  
+  import { Button } from "$lib/components/ui/button/index.js";
+  import { Shrink } from '@lucide/svelte';
   let { gridSize = 20, layoutRotation = 90 } = $props();
 
   // Helper function to create a range array
@@ -10,7 +11,6 @@
   // Derived values for canvas dimensions
   let totalSideWidth = $derived(2 * (gridSize + 1));
   let totalSideHeight = $derived(2 * (gridSize + 2));
-  let viewBox = $derived(`0 0 ${totalSideWidth} ${totalSideHeight}`);
 
   // Bead size constants
   const beadSizeRatio = 0.82;
@@ -65,35 +65,213 @@
     layoutRotation
   ));
 
-  // Touch handling for mobile devices
-  function handleTouchMove(e: TouchEvent) {
-    if (beadsStore.step !== "painting") return;
-    const touchElement = document.elementFromPoint(
-      e.touches[0].pageX, 
-      e.touches[0].pageY
-    );
-    if (touchElement && touchElement.id) {
-      beadsStore.canvasColors = {
-        ...beadsStore.canvasColors,
-        [touchElement.id]: beadsStore.selectedColorId
-      };
+  // Pan and zoom state
+  let isPanning = $state(false);
+  let startX = $state(0);
+  let startY = $state(0);
+  let viewBoxX = $state(0);
+  let viewBoxY = $state(0);
+  let zoomLevel = $state(1.0);
+  let panSensitivity = $state(0.2); // Add sensitivity factor (lower = less sensitive)
+  
+  // Computed viewBox that includes pan and zoom
+  const computedViewBox = $derived(
+    `${viewBoxX} ${viewBoxY} ${totalSideWidth / zoomLevel} ${totalSideHeight / zoomLevel}`
+  );
+  const isPannedOrZoomed = $derived(viewBoxX !== 0 || viewBoxY !== 0 || zoomLevel !== 1.0);
+
+  // Check if painting is allowed (not in hand mode and in painting step)
+  function canPaint() {
+    return beadsStore.step === "painting" && !beadsStore.handMode;
+  }
+
+  // Handle mouse and touch events for pan and zoom
+  function handlePointerDown(e: PointerEvent) {
+    if (beadsStore.handMode) {
+      isPanning = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      // Prevent default to avoid text selection during panning
+      e.preventDefault();
+    }
+  }
+
+  function handlePointerMove(e: PointerEvent) {
+    if (isPanning && beadsStore.handMode) {
+      const dx = ((e.clientX - startX) / zoomLevel) * panSensitivity;
+      const dy = ((e.clientY - startY) / zoomLevel) * panSensitivity;
+      viewBoxX -= dx;
+      viewBoxY -= dy;
+      startX = e.clientX;
+      startY = e.clientY;
+      e.preventDefault();
     }
   }
 
   function handlePointerUp() {
-    beadsStore.commitToHistory(beadsStore.canvasColors);
+    if (isPanning) {
+      isPanning = false;
+    }
+    
+    if (canPaint()) {
+      beadsStore.commitToHistory(beadsStore.canvasColors);
+    }
+  }
+
+  function handleWheel(e: WheelEvent) {
+    e.preventDefault();
+    
+    // Calculate zoom center point (mouse position)
+    const target = e.currentTarget as SVGSVGElement;
+    const svgRect = target.getBoundingClientRect();
+    const mouseX = e.clientX - svgRect.left;
+    const mouseY = e.clientY - svgRect.top;
+    
+    // Convert mouse position to SVG coordinates
+    const svgPoint = {
+      x: viewBoxX + (mouseX / svgRect.width) * (totalSideWidth / zoomLevel),
+      y: viewBoxY + (mouseY / svgRect.height) * (totalSideHeight / zoomLevel)
+    };
+    
+    // Apply zoom - negative deltaY means zoom in
+    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+    const newZoom = Math.max(0.5, Math.min(5, zoomLevel * zoomFactor));
+    
+    if (newZoom !== zoomLevel) {
+      // Adjust viewBox to keep the mouse position fixed
+      viewBoxX = svgPoint.x - (mouseX / svgRect.width) * (totalSideWidth / newZoom);
+      viewBoxY = svgPoint.y - (mouseY / svgRect.height) * (totalSideHeight / newZoom);
+      zoomLevel = newZoom;
+    }
+  }
+
+  // Touch handling for mobile devices
+  function handleTouchMove(e: TouchEvent) {
+    if (e.touches.length === 2) {
+      // Handle pinch zoom (touch with two fingers)
+      handlePinchZoom(e);
+      return;
+    }
+    
+    if (beadsStore.handMode) {
+      // Handle panning with one finger in hand mode
+      const touch = e.touches[0];
+      const pointerEvent = new PointerEvent('pointermove', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+      handlePointerMove(pointerEvent);
+      return;
+    }
+    
+    if (beadsStore.step === "painting" && !beadsStore.handMode) {
+      // Handle painting with touch
+      const touchElement = document.elementFromPoint(
+        e.touches[0].pageX, 
+        e.touches[0].pageY
+      );
+      if (touchElement && touchElement.id) {
+        beadsStore.canvasColors = {
+          ...beadsStore.canvasColors,
+          [touchElement.id]: beadsStore.selectedColorId
+        };
+      }
+    }
+  }
+
+  let lastTouchDistance = 0;
+  
+  function handleTouchStart(e: TouchEvent) {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      // Store initial distance between fingers for pinch zoom
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
+    } else if (beadsStore.handMode) {
+      // Start panning with single touch in hand mode
+      isPanning = true;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }
+  }
+
+  function handlePinchZoom(e: TouchEvent) {
+    if (e.touches.length !== 2) return;
+    
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Calculate center point between fingers
+    const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    
+    // Convert center to SVG coordinates
+    const target = e.currentTarget as SVGSVGElement;
+    const svgRect = target.getBoundingClientRect();
+    const svgPoint = {
+      x: viewBoxX + (centerX - svgRect.left) / svgRect.width * (totalSideWidth / zoomLevel),
+      y: viewBoxY + (centerY - svgRect.top) / svgRect.height * (totalSideHeight / zoomLevel)
+    };
+    
+    // Calculate zoom factor
+    const zoomFactor = distance / lastTouchDistance;
+    lastTouchDistance = distance;
+    
+    // Apply zoom with constraints
+    const newZoom = Math.max(0.5, Math.min(5, zoomLevel * zoomFactor));
+    
+    if (newZoom !== zoomLevel) {
+      // Adjust viewBox to maintain center point
+      viewBoxX = svgPoint.x - ((centerX - svgRect.left) / svgRect.width) * (totalSideWidth / newZoom);
+      viewBoxY = svgPoint.y - ((centerY - svgRect.top) / svgRect.height) * (totalSideHeight / newZoom);
+      zoomLevel = newZoom;
+    }
+  }
+
+  function handleTouchEnd() {
+    isPanning = false;
+    if (canPaint()) {
+      beadsStore.commitToHistory(beadsStore.canvasColors);
+    }
+  }
+
+  // Reset view to center
+  function resetView() {
+    viewBoxX = 0;
+    viewBoxY = 0;
+    zoomLevel = 1.0;
   }
 </script>
 
-<svg {viewBox} ontouchmove={handleTouchMove} onpointerup={handlePointerUp}>
-  {#each beads as bead (bead.id)}
-    <Bead {...bead} />
-  {/each}
-</svg>
+<div class="flex flex-col items-center w-full h-full min-h-[80vh] sm:min-h-0">
+  <div class="flex items-center gap-4 my-2">
+    <Button 
+      variant="outline"
+      onclick={resetView}
+      aria-label="Reset view"
+      size="icon"
+      class={isPannedOrZoomed ? 'inline-flex' : 'hidden'}
+    >
+      <Shrink />
+    </Button>
+    <div class="text-sm text-slate-500">Zoom: {(zoomLevel * 100).toFixed(0)}%</div>
+  </div>
 
-<style>
-  svg {
-    touch-action: none;
-    max-height: 80vh;
-  }
-</style> 
+  <svg 
+    viewBox={computedViewBox} 
+    ontouchmove={handleTouchMove}
+    ontouchstart={handleTouchStart}
+    ontouchend={handleTouchEnd}
+    onpointerdown={handlePointerDown}
+    onpointermove={handlePointerMove}
+    onpointerup={handlePointerUp}
+    onwheel={handleWheel}
+    class="touch-none w-full h-full max-h-[80vh] {beadsStore.handMode ? 'cursor-grab' : ''} {isPanning ? 'cursor-grabbing' : ''}"
+  >
+    {#each beads as bead (bead.id)}
+      <Bead {...bead} />
+    {/each}
+  </svg>
+</div> 
