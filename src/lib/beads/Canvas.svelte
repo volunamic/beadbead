@@ -182,7 +182,6 @@
   let lastTouchDistance = 0;
   
   function handleTouchStart(e: TouchEvent) {
-    e.preventDefault();
     if (e.touches.length === 2) {
       // Store initial distance between fingers for pinch zoom
       const dx = e.touches[0].clientX - e.touches[1].clientX;

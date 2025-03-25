@@ -15,6 +15,7 @@
 				secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm",
 				ghost: "hover:bg-accent hover:text-accent-foreground",
 				link: "text-primary underline-offset-4 hover:underline",
+				color: "bg-hsl [&.color-selected]:translate-x-2 [&.color-selected]:border-2 [&.color-selected]:border-black [&.color-blank]:border-2 [&.color-blank]:border-gray-300 transition-transform duration-300 ease-in-out"
 			},
 			size: {
 				default: "h-9 px-4 py-2",
