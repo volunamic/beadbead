@@ -3,14 +3,17 @@
   import { beadsStore } from './stores.svelte';
   import { Button } from "$lib/components/ui/button/index.js";
   import { Shrink } from '@lucide/svelte';
-  let { gridSize = 20, layoutRotation = 90 } = $props();
+  let { gridWidth = 20, gridHeight = 20, layoutRotation = 90 } = $props();
+
+  // For backward compatibility
+  const gridSize = $derived(Math.max(gridWidth, gridHeight));
 
   // Helper function to create a range array
   const range = (s: number) => [...Array(s).keys()];
 
   // Derived values for canvas dimensions
-  let totalSideWidth = $derived(2 * (gridSize + 1));
-  let totalSideHeight = $derived(2 * (gridSize + 2));
+  let totalSideWidth = $derived(2 * (Math.max(gridWidth, gridHeight) + 1));
+  let totalSideHeight = $derived(2 * (Math.max(gridWidth, gridHeight) + 2));
 
   // Bead size constants
   const beadSizeRatio = 0.82;
@@ -18,35 +21,35 @@
   const beadHeight = 2;
 
   // Function to generate bead positions based on grid size and rotation
-  function makeBeads(size: number, h: number, w: number, totalH: number, totalW: number, angle: number) {
+  function makeBeads(width: number, height: number, h: number, w: number, totalH: number, totalW: number, angle: number) {
     switch(angle) {
       case 90:
-        return range(size).flatMap(i => range(size).map(j => ({
-          id: (i*size + j).toString(),
+        return range(height).flatMap(i => range(width).map(j => ({
+          id: (i*width + j).toString(),
           x: totalH - (beadsStore.isStaggered && i % 2 ? h * (j + 1) : h * (j + 1.5)),
           y: w * (i + 1.5) + 3,
           height: w,
           width: h,
         })));
       case 180:
-        return range(size).flatMap(i => range(size).map(j => ({
-          id: (i*size + j).toString(),
+        return range(height).flatMap(i => range(width).map(j => ({
+          id: (i*width + j).toString(),
           x: totalW - (w * (i + 1.5)) - 6,
           y: totalH - (beadsStore.isStaggered && i % 2 ? h * (j + 1) : h * (j + 1.5)) + 1,
           height: h,
           width: w,
         })));
       case 270:
-        return range(size).flatMap(i => range(size).map(j => ({
-          id: (i*size + j).toString(),
+        return range(height).flatMap(i => range(width).map(j => ({
+          id: (i*width + j).toString(),
           x: beadsStore.isStaggered && i % 2 ? h * (j + 1) : h * (j + 1.5) - 2,
           y: totalW - (w * (i + 1.5) + 3) - 2,
           height: w,
           width: h,
         })));
       default:
-        return range(size).flatMap(i => range(size).map(j => ({
-          id: (i*size + j).toString(),
+        return range(height).flatMap(i => range(width).map(j => ({
+          id: (i*width + j).toString(),
           x: w * (i + 1.5) + 2,
           y: beadsStore.isStaggered && i % 2 ? h * (j + 1) : h * (j + 1.5),
           height: h,
@@ -57,7 +60,8 @@
 
   // Create beads based on current grid size and rotation
   let beads = $derived(makeBeads(
-    gridSize, 
+    gridWidth,
+    gridHeight,
     beadHeight, 
     beadWidth, 
     totalSideWidth, 

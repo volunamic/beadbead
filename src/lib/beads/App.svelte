@@ -3,24 +3,48 @@
   import { beadsStore } from './stores.svelte';
   import { onMount } from 'svelte';
   import { Button } from "$lib/components/ui/button/index.js";
-  import { Undo, Redo, RotateCcwSquare, RotateCwSquare, TableCellsSplit, Trash2, Grid2x2, Hand, Grab, Palette, SlidersHorizontal } from '@lucide/svelte';
+  import { Undo, Redo, RotateCcwSquare, RotateCwSquare, TableCellsSplit, Trash2, Grid2x2, Hand, Grab, Palette, SlidersHorizontal, MousePointer2 } from '@lucide/svelte';
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { Slider } from "$lib/components/ui/slider/index.js";
   import ColorSliders from "$lib/components/composed/ColorSliders.svelte";
   import { buttonVariants } from "$lib/components/ui/button/index.js";
   import ClearAllButton from "$lib/components/composed/ClearAllButton.svelte";
+	import GridSizeSetting from '@/components/composed/GridSizeSetting.svelte';
   // State for the app
-  let gridSize = $state(20);
-  let layoutRotation = $state(90);
+  let gridWidth = $state(20);
+  let gridHeight = $state(20);
   
-  // Computed values
+  // Computed values for compatibility with other parts of the app
+  const gridSize = $derived(Math.max(gridWidth, gridHeight));
   const painting = $derived(beadsStore.step === "painting");
   const configuring = $derived(beadsStore.step === "configuring");
+  
+  let layoutRotation = $state(90);
   
   // Initialize the app in painting mode
   onMount(() => {
     startPainting();
   });
+  
+  // Handle keyboard shortcuts
+  function handleKeyDown(event: KeyboardEvent) {
+    // Don't handle keyboard shortcuts if an input element is focused
+    if (isInputFocused()) return;
+    
+    if (event.code === 'Space' && !event.repeat) {
+      // Toggle hand mode with spacebar
+      event.preventDefault();
+      toggleHandMode();
+    }
+  }
+  
+  // Check if an input element is currently focused
+  function isInputFocused() {
+    const activeElement = document.activeElement;
+    return activeElement instanceof HTMLInputElement || 
+           activeElement instanceof HTMLTextAreaElement || 
+           activeElement instanceof HTMLSelectElement;
+  }
   
   // Rotation actions
   function rotateRight() {
@@ -60,7 +84,14 @@
   function toggleHandMode() {
     beadsStore.toggleHandMode();
   }
+  
+  // Toggle select mode
+  function toggleSelectMode() {
+    beadsStore.toggleSelectMode();
+  }
 </script>
+
+<svelte:window onkeydown={handleKeyDown} />
 
 <main class="min-h-screen grid grid-cols-[fit-content(4em)_1fr_1fr] grid-areas-painting">
   <!-- Logo Section -->
@@ -71,7 +102,7 @@
   
   <!-- Config Panel -->
   <div class= "config-panel">
-     <div class="flex flex-wrap items-center ml-12 gap-2">
+     <div class="flex flex-wrap items-center sm:ml-12 gap-2">
       <Button variant="outline" size="icon" onclick={rotateLeft}>
         <RotateCcwSquare />
       </Button>
@@ -117,12 +148,8 @@
         </div>
       </div>
  
-        <div class="cell-label">
-          <p class="grid-size-label">{gridSize} x {gridSize}</p>
-        </div>
-        <div class="cell-slider w-full max-w-sm">
-          <Slider type="single" class="accent-slate-500" bind:value={gridSize} min={5} max={50} step={1} />
-        </div>
+       
+      <GridSizeSetting bind:gridWidth={gridWidth} bind:gridHeight={gridHeight} />
 
         <ClearAllButton />
                 
@@ -161,7 +188,7 @@
   
   <!-- Workspace -->
   <div class="workspace h-[calc(100vh-7rem)]">
-    <Canvas gridSize={gridSize} layoutRotation={layoutRotation} />
+    <Canvas {gridWidth} {gridHeight} {layoutRotation} />
   </div>
 </main>
 
