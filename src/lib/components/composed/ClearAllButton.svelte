@@ -14,9 +14,9 @@
   }
 
 </script>
-<div class="cell-reset-button md:ml-auto">
+<div class="cell-reset-button">
     <AlertDialog.Root open={open} onOpenChange={() => open = !open} >
-      <AlertDialog.Trigger class={buttonVariants({ variant: "destructive", size: "icon" })}>
+      <AlertDialog.Trigger class={buttonVariants({ variant: "destructive", size: "sm" })}>
             <Trash2 />
       </AlertDialog.Trigger>
       <AlertDialog.Content>

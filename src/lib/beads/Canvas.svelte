@@ -70,19 +70,21 @@
   ));
 
   // Pan and zoom state
-  let isPanning = $state(false);
-  let startX = $state(0);
-  let startY = $state(0);
-  let viewBoxX = $state(0);
-  let viewBoxY = $state(0);
-  let zoomLevel = $state(1.0);
-  let panSensitivity = $state(0.2); // Add sensitivity factor (lower = less sensitive)
+  // Remove these local states as they're now in the store
+  // let isPanning = $state(false);
+  // let startX = $state(0);
+  // let startY = $state(0);
+  // let viewBoxX = $state(0);
+  // let viewBoxY = $state(0);
+  // let zoomLevel = $state(1.0);
+  // let panSensitivity = $state(0.2);
   
-  // Computed viewBox that includes pan and zoom
+  // Update computedViewBox to use store values
   const computedViewBox = $derived(
-    `${viewBoxX} ${viewBoxY} ${totalSideWidth / zoomLevel} ${totalSideHeight / zoomLevel}`
+    `${beadsStore.viewBoxX} ${beadsStore.viewBoxY} ${totalSideWidth / beadsStore.zoomLevel} ${totalSideHeight / beadsStore.zoomLevel}`
   );
-  const isPannedOrZoomed = $derived(viewBoxX !== 0 || viewBoxY !== 0 || zoomLevel !== 1.0);
+  const isPannedOrZoomed = $derived(beadsStore.viewBoxX !== 0 || beadsStore.viewBoxY !== 0 || beadsStore.zoomLevel !== 1.0);
+
 
   // Check if painting is allowed (not in hand mode and in painting step)
   function canPaint() {
@@ -92,29 +94,29 @@
   // Handle mouse and touch events for pan and zoom
   function handlePointerDown(e: PointerEvent) {
     if (beadsStore.handMode) {
-      isPanning = true;
-      startX = e.clientX;
-      startY = e.clientY;
+      beadsStore.isPanning = true;
+      beadsStore.startX = e.clientX;
+      beadsStore.startY = e.clientY;
       // Prevent default to avoid text selection during panning
       e.preventDefault();
     }
   }
 
   function handlePointerMove(e: PointerEvent) {
-    if (isPanning && beadsStore.handMode) {
-      const dx = ((e.clientX - startX) / zoomLevel) * panSensitivity;
-      const dy = ((e.clientY - startY) / zoomLevel) * panSensitivity;
-      viewBoxX -= dx;
-      viewBoxY -= dy;
-      startX = e.clientX;
-      startY = e.clientY;
+    if (beadsStore.isPanning && beadsStore.handMode) {
+      const dx = ((e.clientX - beadsStore.startX) / beadsStore.zoomLevel) * beadsStore.panSensitivity;
+      const dy = ((e.clientY - beadsStore.startY) / beadsStore.zoomLevel) * beadsStore.panSensitivity;
+      beadsStore.viewBoxX -= dx;
+      beadsStore.viewBoxY -= dy;
+      beadsStore.startX = e.clientX;
+      beadsStore.startY = e.clientY;
       e.preventDefault();
     }
   }
 
   function handlePointerUp() {
-    if (isPanning) {
-      isPanning = false;
+    if (beadsStore.isPanning) {
+      beadsStore.isPanning = false;
     }
     
     if (canPaint()) {
@@ -133,19 +135,19 @@
     
     // Convert mouse position to SVG coordinates
     const svgPoint = {
-      x: viewBoxX + (mouseX / svgRect.width) * (totalSideWidth / zoomLevel),
-      y: viewBoxY + (mouseY / svgRect.height) * (totalSideHeight / zoomLevel)
+      x: beadsStore.viewBoxX + (mouseX / svgRect.width) * (totalSideWidth / beadsStore.zoomLevel),
+      y: beadsStore.viewBoxY + (mouseY / svgRect.height) * (totalSideHeight / beadsStore.zoomLevel)
     };
     
     // Apply zoom - negative deltaY means zoom in
     const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    const newZoom = Math.max(0.5, Math.min(5, zoomLevel * zoomFactor));
+    const newZoom = Math.max(0.5, Math.min(5, beadsStore.zoomLevel * zoomFactor));
     
-    if (newZoom !== zoomLevel) {
+    if (newZoom !== beadsStore.zoomLevel) {
       // Adjust viewBox to keep the mouse position fixed
-      viewBoxX = svgPoint.x - (mouseX / svgRect.width) * (totalSideWidth / newZoom);
-      viewBoxY = svgPoint.y - (mouseY / svgRect.height) * (totalSideHeight / newZoom);
-      zoomLevel = newZoom;
+      beadsStore.viewBoxX = svgPoint.x - (mouseX / svgRect.width) * (totalSideWidth / newZoom);
+      beadsStore.viewBoxY = svgPoint.y - (mouseY / svgRect.height) * (totalSideHeight / newZoom);
+      beadsStore.zoomLevel = newZoom;
     }
   }
 
@@ -193,9 +195,9 @@
       lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
     } else if (beadsStore.handMode) {
       // Start panning with single touch in hand mode
-      isPanning = true;
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
+      beadsStore.isPanning = true;
+      beadsStore.startX = e.touches[0].clientX;
+      beadsStore.startY = e.touches[0].clientY;
     }
   }
 
@@ -214,8 +216,8 @@
     const target = e.currentTarget as SVGSVGElement;
     const svgRect = target.getBoundingClientRect();
     const svgPoint = {
-      x: viewBoxX + (centerX - svgRect.left) / svgRect.width * (totalSideWidth / zoomLevel),
-      y: viewBoxY + (centerY - svgRect.top) / svgRect.height * (totalSideHeight / zoomLevel)
+      x: beadsStore.viewBoxX + (centerX - svgRect.left) / svgRect.width * (totalSideWidth / beadsStore.zoomLevel),
+      y: beadsStore.viewBoxY + (centerY - svgRect.top) / svgRect.height * (totalSideHeight / beadsStore.zoomLevel)
     };
     
     // Calculate zoom factor
@@ -223,18 +225,18 @@
     lastTouchDistance = distance;
     
     // Apply zoom with constraints
-    const newZoom = Math.max(0.5, Math.min(5, zoomLevel * zoomFactor));
+    const newZoom = Math.max(0.5, Math.min(5, beadsStore.zoomLevel * zoomFactor));
     
-    if (newZoom !== zoomLevel) {
+    if (newZoom !== beadsStore.zoomLevel) {
       // Adjust viewBox to maintain center point
-      viewBoxX = svgPoint.x - ((centerX - svgRect.left) / svgRect.width) * (totalSideWidth / newZoom);
-      viewBoxY = svgPoint.y - ((centerY - svgRect.top) / svgRect.height) * (totalSideHeight / newZoom);
-      zoomLevel = newZoom;
+      beadsStore.viewBoxX = svgPoint.x - ((centerX - svgRect.left) / svgRect.width) * (totalSideWidth / newZoom);
+      beadsStore.viewBoxY = svgPoint.y - ((centerY - svgRect.top) / svgRect.height) * (totalSideHeight / newZoom);
+      beadsStore.zoomLevel = newZoom;
     }
   }
 
   function handleTouchEnd() {
-    isPanning = false;
+    beadsStore.isPanning = false;
     if (canPaint()) {
       beadsStore.commitToHistory(beadsStore.canvasColors);
     }
@@ -242,9 +244,9 @@
 
   // Reset view to center
   function resetView() {
-    viewBoxX = 0;
-    viewBoxY = 0;
-    zoomLevel = 1.0;
+    beadsStore.viewBoxX = 0;
+    beadsStore.viewBoxY = 0;
+    beadsStore.zoomLevel = 1.0;
   }
 </script>
 
@@ -259,10 +261,12 @@
     >
       <Shrink />
     </Button>
-    <div class="text-sm text-slate-500">Zoom: {(zoomLevel * 100).toFixed(0)}%</div>
+    <div class="text-sm text-slate-500">Zoom: {(beadsStore.zoomLevel * 100).toFixed(0)}%</div>
   </div>
 
+  <!-- Update class binding to use store values -->
   <svg 
+    id="drawingArea"
     viewBox={computedViewBox} 
     ontouchmove={handleTouchMove}
     ontouchstart={handleTouchStart}
@@ -271,10 +275,10 @@
     onpointermove={handlePointerMove}
     onpointerup={handlePointerUp}
     onwheel={handleWheel}
-    class="touch-none w-full h-full max-h-[80vh] {beadsStore.handMode ? 'cursor-grab' : ''} {isPanning ? 'cursor-grabbing' : ''}"
+    class="touch-none w-full h-full max-h-[80vh] {beadsStore.handMode ? 'cursor-grab' : ''} {beadsStore.isPanning ? 'cursor-grabbing' : ''}"
   >
     {#each beads as bead (bead.id)}
       <Bead {...bead} />
     {/each}
   </svg>
-</div> 
+</div>

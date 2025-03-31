@@ -48,8 +48,17 @@ export class BeadsStore {
   #_colorPalette = $state(defaultColorPalette());
   #_canvasColors = $state(defaultCanvas());
   #_history = $state<History>(defaultHistory());
-  #_isStaggered = $state(true); // Default to staggered layout
-  #_handMode = $state(false); // Default to painting mode (not hand mode)
+  #_isStaggered = $state(true);
+  #_handMode = $state(false);
+  
+  // Add zoom-related states
+  #_isPanning = $state(false);
+  #_startX = $state(0);
+  #_startY = $state(0);
+  #_viewBoxX = $state(0);
+  #_viewBoxY = $state(0);
+  #_zoomLevel = $state(1.0);
+  #_panSensitivity = $state(0.2);
 
   // Getters
   get step(): Step { return this.#_step; }
@@ -150,7 +159,32 @@ export class BeadsStore {
   toggleHandMode() {
     this.handMode = !this.handMode;
   }
+
+  // Add zoom-related getters
+  get isPanning() { return this.#_isPanning; }
+  get startX() { return this.#_startX; }
+  get startY() { return this.#_startY; }
+  get viewBoxX() { return this.#_viewBoxX; }
+  get viewBoxY() { return this.#_viewBoxY; }
+  get zoomLevel() { return this.#_zoomLevel; }
+  get panSensitivity() { return this.#_panSensitivity; }
+
+  // Add zoom-related setters
+  set isPanning(value: boolean) { this.#_isPanning = value; }
+  set startX(value: number) { this.#_startX = value; }
+  set startY(value: number) { this.#_startY = value; }
+  set viewBoxX(value: number) { this.#_viewBoxX = value; }
+  set viewBoxY(value: number) { this.#_viewBoxY = value; }
+  set zoomLevel(value: number) { this.#_zoomLevel = value; }
+  set panSensitivity(value: number) { this.#_panSensitivity = value; }
+
+  // Reset view method
+  resetView() {
+    this.viewBoxX = 0;
+    this.viewBoxY = 0;
+    this.zoomLevel = 1.0;
+  }
 }
 
 // Create singleton instance
-export const beadsStore = new BeadsStore(); 
+export const beadsStore = new BeadsStore();
