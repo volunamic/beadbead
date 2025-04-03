@@ -32,5 +32,9 @@
 		"tailwindcss-animate": "^1.0.7",
 		"typescript": "^5.0.0",
 		"vite": "^6.0.0"
+	},
+	"dependencies": {
+		"@interactjs/types": "^1.10.27",
+		"interactjs": "^1.10.27"
 	}
 }

@@ -4,10 +4,19 @@ import { areEqual } from './utils';
 type ColorPalette = Array<{h: number, s: number, l: number, id: number}>;
 type CanvasColors = Record<string, number>;
 type History = {
-  cursor: number;
-  versions: CanvasColors[];
+	cursor: number;
+	versions: CanvasColors[];
 };
-type Step = "configuring" | "painting";
+type Step = 'configuring' | 'painting';
+type InteractionMode = 'painting' | 'image'; // New type for interaction mode
+type UploadedImage = {
+	src: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	opacity: number;
+} | null; // New type for uploaded image
 
 // Default values
 const defaultSelectedColorID = () => 0;
@@ -59,6 +68,13 @@ export class BeadsStore {
   #_viewBoxY = $state(0);
   #_zoomLevel = $state(1.0);
   #_panSensitivity = $state(0.2);
+  #_imageDragSensitivity = $state(1); // Reset image drag sensitivity to 1.0
+
+  // Image feature state
+  #_interactionMode = $state<InteractionMode>('painting');
+  #_uploadedImage = $state<UploadedImage>(null);
+  #_isImageSelected = $state(false);
+  #_isUploadedImageVisible = $state(true); // Added visibility state
 
   // Getters
   get step(): Step { return this.#_step; }
@@ -68,6 +84,11 @@ export class BeadsStore {
   get history() { return this.#_history; }
   get isStaggered() { return this.#_isStaggered; }
   get handMode() { return this.#_handMode; }
+  get imageDragSensitivity() { return this.#_imageDragSensitivity; } // Added getter
+  get interactionMode() { return this.#_interactionMode; }
+  get uploadedImage() { return this.#_uploadedImage; }
+  get isImageSelected() { return this.#_isImageSelected; }
+  get isUploadedImageVisible() { return this.#_isUploadedImageVisible; } // Added getter
 
   // Setters
   set step(value: Step) {
@@ -93,14 +114,20 @@ export class BeadsStore {
   set isStaggered(value: boolean) { this.#_isStaggered = value; }
   
   set handMode(value: boolean) { this.#_handMode = value; }
+  set imageDragSensitivity(value: number) { this.#_imageDragSensitivity = value; } // Added setter
+  set interactionMode(value: InteractionMode) { this.#_interactionMode = value; }
+  set uploadedImage(value: UploadedImage) { this.#_uploadedImage = value; }
+  set isImageSelected(value: boolean) { this.#_isImageSelected = value; }
+  set isUploadedImageVisible(value: boolean) { this.#_isUploadedImageVisible = value; } // Added setter
+
 
   // Step actions
   setStepPainting() {
-    this.step = "painting";
+    this.step = 'painting';
   }
 
   setStepConfiguring() {
-    this.step = "configuring";
+    this.step = 'configuring';
   }
 
   // Reset actions
@@ -118,6 +145,13 @@ export class BeadsStore {
 
   resetHistory() {
     this.history = defaultHistory();
+  }
+
+  resetImageState() {
+    this.interactionMode = 'painting';
+    this.uploadedImage = null;
+    this.isImageSelected = false;
+    this.isUploadedImageVisible = true; // Reset visibility on full reset
   }
 
   // History actions
@@ -160,6 +194,26 @@ export class BeadsStore {
     this.handMode = !this.handMode;
   }
 
+  toggleInteractionMode() {
+    this.interactionMode = this.interactionMode === 'painting' ? 'image' : 'painting';
+    // Deselect image when switching modes
+    if (this.interactionMode === 'painting') {
+      this.isImageSelected = false;
+    }
+  }
+
+  toggleImageSelected() {
+    if (this.interactionMode === 'image' && this.uploadedImage) {
+      this.isImageSelected = !this.isImageSelected;
+    }
+  }
+
+  toggleUploadedImageVisibility() {
+    if (this.uploadedImage) { // Only toggle if an image exists
+       this.isUploadedImageVisible = !this.isUploadedImageVisible;
+    }
+  }
+
   // Add zoom-related getters
   get isPanning() { return this.#_isPanning; }
   get startX() { return this.#_startX; }
@@ -168,6 +222,7 @@ export class BeadsStore {
   get viewBoxY() { return this.#_viewBoxY; }
   get zoomLevel() { return this.#_zoomLevel; }
   get panSensitivity() { return this.#_panSensitivity; }
+
 
   // Add zoom-related setters
   set isPanning(value: boolean) { this.#_isPanning = value; }

@@ -20,7 +20,8 @@
 
   // Helper function to check if painting is allowed
   function canPaint() {
-    return beadsStore.step === "painting" && !beadsStore.handMode;
+    // Also check if we are in painting interaction mode
+    return beadsStore.interactionMode === 'painting' && !beadsStore.handMode;
   }
 
   // Paint function
@@ -75,4 +76,4 @@
     stroke-width: 0.2;
     cursor: crosshair;
   }
-</style> 
+</style>

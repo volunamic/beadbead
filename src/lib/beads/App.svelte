@@ -15,17 +15,20 @@
 		Hand,
 		Grab,
 		SlidersHorizontal,
-		Download
+		Download,
+		ImageUpscale,
+		ImagePlus
 	} from '@lucide/svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
-	import { Slider } from '$lib/components/ui/slider/index.js';
+	// import { Slider } from '$lib/components/ui/slider/index.js'; // Using standard range input instead
 	import ColorSliders from '$lib/components/composed/ColorSliders.svelte';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import ClearAllButton from '$lib/components/composed/ClearAllButton.svelte';
-	import GridSizeSetting from '@/components/composed/GridSizeSetting.svelte';
+	import GridSizeSetting from '$lib/components/composed/GridSizeSetting.svelte'; // Corrected path alias
 	// State for the app
 	let gridWidth = $state(20);
 	let gridHeight = $state(20);
+	let imageInput: HTMLInputElement | null = $state(null); // Reference to hidden file input
 
 	// Computed values for compatibility with other parts of the app
 	const gridSize = $derived(Math.max(gridWidth, gridHeight));
@@ -139,7 +142,7 @@
 			ctx.imageSmoothingQuality = 'high';
 
 			const url = URL.createObjectURL(svgBlob);
-			const img = new Image();
+			let img = new window.Image(canvas.width, canvas.height);
 
 			await new Promise((resolve, reject) => {
 				img.onload = () => {
@@ -171,6 +174,56 @@
 	function toggleHandMode() {
 		beadsStore.toggleHandMode();
 	}
+
+	// Toggle image interaction mode
+	function toggleImageMode() {
+		beadsStore.toggleInteractionMode();
+	}
+
+	// Trigger hidden file input
+	function triggerImageUpload() {
+		imageInput?.click();
+	}
+
+	// Handle image file selection
+	function handleImageUpload(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (file) {
+			// @ts-ignore - Suppress TS error about constructor signature
+			const reader = new FileReader(); 
+			reader.onload = (e: Event) => { 
+				const targetReader = e.target as FileReader | null; 
+				if (targetReader?.result) {
+					const src = targetReader.result as string;
+					// Set initial image state - centered, scaled down, full opacity
+					// TODO: Calculate better initial size/position based on canvas?
+				beadsStore.uploadedImage = {
+					src: src,
+					x: 5, // Example initial position
+					y: 5, // Example initial position
+					width: 50, // Example initial size
+						height: 50, // Example initial size
+						opacity: 1
+					};
+					// Switch to image mode automatically after upload
+					beadsStore.interactionMode = 'image';
+				}
+			};
+			reader.readAsDataURL(file);
+		}
+		// Reset input value to allow uploading the same file again
+		if (target) target.value = '';
+	}
+
+	// Handle transparency slider change (updated for range input)
+	function handleOpacityChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const value = parseFloat(target.value);
+		if (beadsStore.uploadedImage) {
+			beadsStore.uploadedImage = { ...beadsStore.uploadedImage, opacity: value / 100 };
+		}
+	}
 </script>
 
 <svelte:window onkeydown={handleKeyDown} />
@@ -185,13 +238,13 @@
 	<!-- Config Panel -->
 	<div class="config-panel">
 		<div class="flex flex-wrap items-center sm:ml-12 gap-2">
-			<Button variant="outline" size="icon" onclick={rotateLeft}>
+			<Button variant="outline" size="icon" title="Rotate Left 90°" onclick={rotateLeft}>
 				<RotateCcwSquare />
 			</Button>
-			<Button variant="outline" size="icon" onclick={rotateRight}>
+			<Button variant="outline" size="icon" title="Rotate Right 90°" onclick={rotateRight}>
 				<RotateCwSquare />
 			</Button>
-			<Button variant="outline" size="icon" onclick={() => beadsStore.toggleStaggered()}>
+			<Button variant="outline" size="icon" title="Staggered Mode" onclick={() => beadsStore.toggleStaggered()}>
 				{#if beadsStore.isStaggered}
 					<TableCellsSplit />
 				{:else}
@@ -203,6 +256,7 @@
 			<Button
 				variant={beadsStore.handMode ? 'default' : 'outline'}
 				size="icon"
+				disabled={beadsStore.interactionMode === 'image'} 
 				onclick={toggleHandMode}
 				aria-label={beadsStore.handMode ? 'Leave hand mode' : 'Switch to hand mode'}
 				title={beadsStore.handMode ? 'Leave hand mode' : 'Switch to hand mode'}
@@ -214,6 +268,37 @@
 				{/if}
 			</Button>
 
+			<!-- Upload Image Button -->
+			<Button
+				variant="outline"
+				size="icon"
+				onclick={triggerImageUpload}
+				aria-label="Upload background image"
+				title="Upload background image"
+			>
+				<ImagePlus />
+			</Button>
+
+			<!-- Image Mode Toggle Button -->
+			<Button
+				variant={beadsStore.interactionMode === 'image' ? 'default' : 'outline'}
+				size="icon"
+				onclick={toggleImageMode}
+				aria-label={beadsStore.interactionMode === 'image' ? 'Leave image mode' : 'Switch to image mode'}
+				title={beadsStore.interactionMode === 'image' ? 'Leave image mode' : 'Switch to image mode'}
+			>
+				<ImageUpscale />
+			</Button>
+
+			
+			<input
+				type="file"
+				accept="image/*"
+				class="hidden"
+				bind:this={imageInput}
+				onchange={handleImageUpload}
+			/>
+
 			<div class="cell-history-buttons">
 				<div class="history-buttons">
 					<Button
@@ -221,6 +306,7 @@
 						disabled={beadsStore.history.cursor === 0}
 						variant="outline"
 						size="icon"
+						title="Undo"
 						onclick={handleUndo}
 					>
 						<Undo />
@@ -232,6 +318,7 @@
 						disabled={beadsStore.history.cursor === beadsStore.history.versions.length - 1}
 						variant="outline"
 						size="icon"
+						title="Redo"
 						onclick={handleRedo}
 					>
 						<Redo />
@@ -289,8 +376,26 @@
 	</div>
 
 	<!-- Workspace -->
-	<div class="workspace h-[calc(100vh-7rem)]">
+	<div class="workspace h-[calc(100vh-7rem)] relative">
 		<Canvas {gridWidth} {gridHeight} {layoutRotation} />
+		<!-- Transparency Slider (conditionally rendered) -->
+		{#if beadsStore.interactionMode === 'image' && beadsStore.uploadedImage}
+			<div class="absolute bottom-4 left-1/2 -translate-x-1/2 w-64 bg-background p-2 rounded shadow-lg z-10">
+				<label for="opacity-slider" class="text-sm font-medium text-muted-foreground block mb-1"
+					>Image Transparency: {Math.round(beadsStore.uploadedImage.opacity * 100)}%</label
+				>
+				<input
+					type="range"
+					id="opacity-slider"
+					class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+					min="0"
+					max="100"
+					step="1"
+					value={beadsStore.uploadedImage.opacity * 100}
+					oninput={handleOpacityChange}
+				/>
+			</div>
+		{/if}
 	</div>
 </main>
 
